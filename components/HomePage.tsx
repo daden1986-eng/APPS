@@ -6,7 +6,6 @@ import SettingsIcon from './icons/SettingsIcon';
 import ReportIcon from './icons/ReportIcon';
 import RepairIcon from './icons/RepairIcon';
 import ChatIcon from './icons/ChatIcon';
-import VpnIcon from './icons/VpnIcon';
 import { Page } from './Dashboard';
 import { DashboardSettings } from '../types';
 
@@ -76,12 +75,6 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate, dashboardSettings }) =>
                 title="Manajemen Perbaikan"
                 description="Kelola tiket perbaikan, jadwal teknisi, dan lacak status."
                 onClick={() => onNavigate('repair')}
-            />
-            <MenuCard
-                icon={<VpnIcon />}
-                title="Manajemen Akun VPN"
-                description="Kelola akun VPN pelanggan, server, dan tanggal kadaluarsa."
-                onClick={() => onNavigate('vpn')}
             />
              <MenuCard
                 icon={<ReportIcon />}

@@ -64,9 +64,6 @@ export interface DashboardSettings {
   enableTelegramNotifications?: boolean;
   telegramBotToken?: string;
   telegramChatId?: string;
-  // New Fields for Google Integration
-  googleClientId?: string;
-  googleSheetId?: string;
 }
 
 // FIX: Added missing RepairStatus enum.
@@ -111,24 +108,4 @@ export interface ChatConversation {
   messages: Message[];
   status: ChatStatus;
   lastUpdate: string;
-}
-
-// FIX: Added missing VpnProtocol enum and VpnAccount interface.
-export enum VpnProtocol {
-  OPENVPN = 'OpenVPN',
-  WIREGUARD = 'WireGuard',
-  L2TP_IPSEC = 'L2TP/IPsec',
-  SSTP = 'SSTP',
-}
-
-export interface VpnAccount {
-  id: string;
-  customerId?: string;
-  username: string;
-  password: string;
-  server: string;
-  protocol: VpnProtocol;
-  creationDate: string;
-  expiryDate: string;
-  notes?: string;
 }

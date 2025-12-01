@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-// FIX: Imported all necessary types including VpnAccount.
-import { Transaction, TransactionType, User, Customer, TransactionMode, CompanyProfile, DashboardSettings, SubscriptionType, RepairTicket, RepairStatus, ChatConversation, VpnAccount, VpnProtocol } from '../types';
+import { Transaction, TransactionType, User, Customer, TransactionMode, CompanyProfile, DashboardSettings, SubscriptionType, RepairTicket, RepairStatus, ChatConversation } from '../types';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import HomePage from './HomePage';
 import TransactionPage from './TransactionPage';
@@ -10,23 +9,18 @@ import SettingsPage from './SettingsPage';
 import RepairPage from './RepairPage';
 import ChatPage from './ChatPage';
 import MonthlyReportPage from './MonthlyReportPage';
-// FIX: Imported VpnPage component to be used.
-import VpnPage from './VpnPage';
 import LogoutIcon from './icons/LogoutIcon';
 import ArrowLeftIcon from './icons/ArrowLeftIcon';
 import { ChartDataPoint } from './Chart';
 import { FinancialSummaryData } from './Summary';
 
-declare const gapi: any;
-declare const google: any;
 
 interface DashboardProps {
     currentUser: User;
     onLogout: () => void;
 }
 
-// FIX: Added 'vpn' to the Page type to enable navigation to the VPN management page.
-export type Page = 'home' | 'transactions' | 'customers' | 'invoice' | 'settings' | 'monthly-report' | 'repair' | 'chat' | 'vpn';
+export type Page = 'home' | 'transactions' | 'customers' | 'invoice' | 'settings' | 'monthly-report' | 'repair' | 'chat';
 
 // Helper to calculate financial summary
 const calculateFinancialSummary = (transactions: Transaction[]): FinancialSummaryData => {
@@ -122,8 +116,6 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, onLogout }) => {
   const [customers, setCustomers] = useLocalStorage<Customer[]>('customers', []);
   const [repairTickets, setRepairTickets] = useLocalStorage<RepairTicket[]>('repairTickets', []);
   const [chatConversations, setChatConversations] = useLocalStorage<ChatConversation[]>('chatConversations', []);
-  // FIX: Added state management for VPN accounts.
-  const [vpnAccounts, setVpnAccounts] = useLocalStorage<VpnAccount[]>('vpnAccounts', []);
   const [companyProfile, setCompanyProfile] = useLocalStorage<CompanyProfile>('companyProfile', {
     name: 'Sirekap DGN',
     address: 'Jalan Digital No. 1, Kota Internet',
@@ -144,49 +136,10 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, onLogout }) => {
     enableTelegramNotifications: false,
     telegramBotToken: '',
     telegramChatId: '',
-    googleClientId: '',
-    googleSheetId: '',
   });
   const [currentPage, setCurrentPage] = useState<Page>('home');
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [editingRepairTicket, setEditingRepairTicket] = useState<RepairTicket | null>(null);
-  // FIX: Added state for editing a VPN account.
-  const [editingVpnAccount, setEditingVpnAccount] = useState<VpnAccount | null>(null);
-
-  // --- Google Integration State ---
-  const [googleToken, setGoogleToken] = useLocalStorage<any>('googleToken', null);
-  const [isGapiLoaded, setIsGapiLoaded] = useState(false);
-  const [lastBackup, setLastBackup] = useLocalStorage<string | null>('lastBackupTimestamp', null);
-  const [syncStatus, setSyncStatus] = useState({ state: 'idle', message: '' });
-
-  // --- Google API Initialization ---
-  useEffect(() => {
-    // Load GAPI client library
-    if (typeof gapi !== 'undefined') {
-        gapi.load('client', () => {
-            // Initialize the client
-            gapi.client.init({}).then(() => {
-                // Load Drive and Sheets APIs after client initialization
-                return Promise.all([
-                    gapi.client.load('drive', 'v3'),
-                    gapi.client.load('sheets', 'v4')
-                ]);
-            }).then(() => {
-                setIsGapiLoaded(true);
-            }).catch((e: any) => {
-                 console.error("Error initializing GAPI client or loading APIs", e);
-            });
-        });
-    }
-  }, []); // Run only once on mount
-
-  useEffect(() => {
-    // When GAPI is loaded and token exists, set the token
-    if (isGapiLoaded && googleToken && typeof gapi !== 'undefined' && gapi.client) {
-        gapi.client.setToken(googleToken);
-    }
-  }, [googleToken, isGapiLoaded]);
-
 
   useEffect(() => {
     if (dashboardSettings.theme === 'dark') {
@@ -195,143 +148,6 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, onLogout }) => {
         document.documentElement.classList.remove('dark');
     }
   }, [dashboardSettings.theme]);
-
-  // --- Google API Handlers ---
-  const handleGoogleSignIn = () => {
-    if (!dashboardSettings.googleClientId) {
-      alert('Harap masukkan Google Client ID di pengaturan terlebih dahulu.');
-      return;
-    }
-    const tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: dashboardSettings.googleClientId,
-      scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets',
-      callback: (tokenResponse: any) => {
-        if (tokenResponse && tokenResponse.access_token) {
-          setGoogleToken(tokenResponse);
-          gapi.client.setToken(tokenResponse);
-        }
-      },
-    });
-    tokenClient.requestAccessToken();
-  };
-
-  const handleGoogleSignOut = () => {
-    if (googleToken) {
-      google.accounts.oauth2.revoke(googleToken.access_token, () => {});
-      setGoogleToken(null);
-      gapi.client.setToken(null);
-    }
-  };
-
-  const getBackupFileId = async (): Promise<string | null> => {
-    const response = await gapi.client.drive.files.list({
-      q: "name='sirekap_dgn_backup.json' and 'root' in parents and trashed=false",
-      fields: 'files(id, name)',
-    });
-    return response.result.files.length > 0 ? response.result.files[0].id : null;
-  };
-  
-  const handleBackupToDrive = async () => {
-    setSyncStatus({ state: 'loading', message: 'Membuat cadangan data...' });
-    try {
-      const backupData = JSON.stringify({
-        transactions, customers, repairTickets, chatConversations, vpnAccounts, companyProfile, dashboardSettings,
-      });
-      const blob = new Blob([backupData], { type: 'application/json' });
-      const fileId = await getBackupFileId();
-
-      const response = await fetch(
-        fileId
-          ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`
-          : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=media',
-        {
-          method: fileId ? 'PATCH' : 'POST',
-          headers: new Headers({ Authorization: `Bearer ${googleToken.access_token}` }),
-          body: blob,
-        }
-      );
-      
-      const file = await response.json();
-      if (!fileId) { // If creating a new file, update its metadata to set the name
-          await gapi.client.drive.files.update({
-              fileId: file.id,
-              resource: { name: 'sirekap_dgn_backup.json' },
-          });
-      }
-
-      setLastBackup(new Date().toISOString());
-      setSyncStatus({ state: 'success', message: 'Pencadangan berhasil!' });
-    } catch (error) {
-      console.error('Backup error:', error);
-      setSyncStatus({ state: 'error', message: 'Pencadangan gagal.' });
-    }
-  };
-
-  const handleRestoreFromDrive = async () => {
-    if (!window.confirm("Apakah Anda yakin? Ini akan menimpa semua data lokal Anda saat ini dengan data dari Google Drive.")) return;
-
-    setSyncStatus({ state: 'loading', message: 'Memulihkan data...' });
-    try {
-      const fileId = await getBackupFileId();
-      if (!fileId) {
-        setSyncStatus({ state: 'error', message: 'File cadangan tidak ditemukan.' });
-        return;
-      }
-      const response = await gapi.client.drive.files.get({ fileId, alt: 'media' });
-      const data = JSON.parse(response.body);
-
-      // Restore data
-      setTransactions(data.transactions || []);
-      setCustomers(data.customers || []);
-      setRepairTickets(data.repairTickets || []);
-      setChatConversations(data.chatConversations || []);
-      setVpnAccounts(data.vpnAccounts || []);
-      setCompanyProfile(data.companyProfile);
-      setDashboardSettings(data.dashboardSettings);
-
-      setSyncStatus({ state: 'success', message: 'Pemulihan berhasil!' });
-      // Force reload to ensure all components re-render with new data
-      window.location.reload();
-    } catch (error) {
-      console.error('Restore error:', error);
-      setSyncStatus({ state: 'error', message: 'Pemulihan gagal.' });
-    }
-  };
-
-  const handleSyncToSheets = async () => {
-    if (!dashboardSettings.googleSheetId) {
-      alert("Harap masukkan ID Google Sheet di pengaturan.");
-      return;
-    }
-    setSyncStatus({ state: 'loading', message: 'Menyinkronkan ke Google Sheets...' });
-    try {
-      const sheetName = 'Pelanggan';
-      const range = `${sheetName}!A:G`;
-      const spreadsheetId = dashboardSettings.googleSheetId;
-
-      await gapi.client.sheets.spreadsheets.values.clear({ spreadsheetId, range });
-
-      const values = [
-          ['ID Pelanggan', 'Nama', 'Telepon', 'Iuran', 'Status Bayar', 'Tgl Bayar Terakhir', 'Tipe Langganan'],
-          ...customers.map(c => [
-              c.id, c.name, c.phone || '', c.fee, c.paid ? 'Lunas' : 'Belum Bayar', 
-              c.lastPaymentDate ? new Date(c.lastPaymentDate).toLocaleDateString('id-ID') : '', c.subscriptionType || ''
-          ])
-      ];
-
-      await gapi.client.sheets.spreadsheets.values.update({
-          spreadsheetId,
-          range: `${sheetName}!A1`,
-          valueInputOption: 'USER_ENTERED',
-          resource: { values },
-      });
-      setSyncStatus({ state: 'success', message: 'Sinkronisasi berhasil!' });
-    } catch (error) {
-      console.error('Sheets sync error:', error);
-      setSyncStatus({ state: 'error', message: `Sinkronisasi gagal. Pastikan ID Sheet benar dan Anda memiliki izin.` });
-    }
-  };
-
 
   const notifyOnTransactionChange = (transaction: Transaction, allTransactions: Transaction[], action: 'add' | 'update' | 'delete') => {
       if (
@@ -466,33 +282,6 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, onLogout }) => {
     setEditingRepairTicket(null);
   };
 
-  // FIX: Added VPN Account Management Logic.
-  const addVpnAccount = (accountData: Omit<VpnAccount, 'id' | 'creationDate'>) => {
-    const newAccount: VpnAccount = {
-      ...accountData,
-      id: new Date().getTime().toString(),
-      creationDate: new Date().toISOString().split('T')[0],
-    };
-    setVpnAccounts(prev => [newAccount, ...prev]);
-  };
-
-  const updateVpnAccount = (updatedAccount: VpnAccount) => {
-      setVpnAccounts(prev => prev.map(acc => acc.id === updatedAccount.id ? updatedAccount : acc));
-      setEditingVpnAccount(null);
-  };
-
-  const deleteVpnAccount = (id: string) => {
-      setVpnAccounts(prev => prev.filter(acc => acc.id !== id));
-  };
-
-  const handleSetEditingVpnAccount = (account: VpnAccount) => {
-      setEditingVpnAccount(account);
-  };
-
-  const handleCancelEditVpnAccount = () => {
-      setEditingVpnAccount(null);
-  };
-
   // Customer Chat Logic
   const updateChatConversation = (conversation: ChatConversation) => {
     setChatConversations(prev => {
@@ -549,7 +338,6 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, onLogout }) => {
       'monthly-report': 'Laporan Keuangan Bulanan & Bagi Hasil',
       'repair': 'Manajemen Tiket & Layanan Perbaikan',
       'chat': 'Chat Pelanggan dengan Bantuan AI',
-      'vpn': 'Manajemen Akun VPN Pelanggan',
   };
 
   const renderPage = () => {
@@ -587,18 +375,6 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, onLogout }) => {
                 onDeleteRepairTicket={deleteRepairTicket}
                 onSetEditingRepairTicket={handleSetEditingRepairTicket}
             />;
-        // FIX: Added case to render VpnPage and pass necessary props.
-        case 'vpn':
-            return <VpnPage
-                vpnAccounts={vpnAccounts}
-                customers={customers}
-                editingVpnAccount={editingVpnAccount}
-                onAddVpnAccount={addVpnAccount}
-                onUpdateVpnAccount={updateVpnAccount}
-                onCancelEdit={handleCancelEditVpnAccount}
-                onDeleteVpnAccount={deleteVpnAccount}
-                onSetEditingVpnAccount={handleSetEditingVpnAccount}
-            />;
         case 'chat':
             return <ChatPage 
                 conversations={chatConversations}
@@ -615,17 +391,6 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, onLogout }) => {
                 onUpdateProfile={setCompanyProfile}
                 dashboardSettings={dashboardSettings}
                 onUpdateDashboardSettings={setDashboardSettings}
-                // Google Integration Props
-                isGapiLoaded={isGapiLoaded}
-                googleToken={googleToken}
-                onGoogleSignIn={handleGoogleSignIn}
-                onGoogleSignOut={handleGoogleSignOut}
-                onBackup={handleBackupToDrive}
-                onRestore={handleRestoreFromDrive}
-                onSyncSheets={handleSyncToSheets}
-                lastBackup={lastBackup}
-                syncStatus={syncStatus}
-                onClearSyncStatus={() => setSyncStatus({ state: 'idle', message: ''})}
             />;
         case 'monthly-report':
             return <MonthlyReportPage transactions={transactions} companyProfile={companyProfile} />;
