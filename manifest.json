@@ -1,0 +1,21 @@
+{
+  "short_name": "Sirekap DGN",
+  "name": "Sirekap Damar Global Network",
+  "description": "Aplikasi web Sirekap Damar Global Network untuk mencatat transaksi kas masuk dan keluar, serta menghitung rincian laba rugi secara otomatis.",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#4f46e5",
+  "background_color": "#f8fafc"
+}

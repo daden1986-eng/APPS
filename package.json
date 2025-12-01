@@ -1,0 +1,12 @@
+{
+  "name": "sirekap-dgn",
+  "version": "1.0.0",
+  "description": "Aplikasi web Sirekap Damar Global Network untuk mencatat transaksi kas masuk dan keluar, serta menghitung rincian laba rugi secara otomatis.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
